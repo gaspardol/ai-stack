@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import Combine
 import ServiceManagement
 import SwiftUI
@@ -22,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     private(set) var writing: WritingAssistant!
     private var statusItem: NSStatusItem!
     private var cancellables = Set<AnyCancellable>()
-    private var blinkTimer: Timer?
+    private var acceptAllHotKey: HotKey?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         AppDelegate.shared = self
@@ -46,6 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
         writing.start()
         detector.start()
+        // ⌃⌥A: accept every suggestion in the focused field, from any app.
+        acceptAllHotKey = HotKey(keyCode: UInt32(kVK_ANSI_A), modifiers: UInt32(controlKey | optionKey), id: 1) { [weak self] in
+            self?.writing.acceptAll()
+        }
 
         recorder.$isRecording.combineLatest(recorder.$processing)
             .receive(on: RunLoop.main)
@@ -166,6 +171,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
         menu.addItem(.separator())
         menu.addItem(.sectionHeader(title: "Writing Assistant"))
+        let acceptAll = item("Accept All Suggestions", #selector(acceptAllSuggestions))
+        acceptAll.keyEquivalent = "a"
+        acceptAll.keyEquivalentModifierMask = [.control, .option]
+        menu.addItem(acceptAll)
         let toggle = item("Check My Writing", #selector(toggleWriting))
         toggle.state = settings.writingEnabled ? .on : .off
         menu.addItem(toggle)
@@ -229,6 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     @objc private func toggleWriting() { settings.writingEnabled.toggle() }
+    @objc private func acceptAllSuggestions() { writing.acceptAll() }
 
     @objc private func toggleAppDisabled(_ sender: NSMenuItem) {
         guard let bundleID = sender.representedObject as? String else { return }

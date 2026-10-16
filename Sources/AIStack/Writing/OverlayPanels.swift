@@ -151,7 +151,7 @@ struct SuggestionCardView: View {
                 Button("Ignore", action: ignore)
                 Button("Turn off in \(appName)", action: disableApp)
                 Spacer()
-                Image(systemName: "sparkle").foregroundStyle(.tertiary)
+                Text("⌃⌥A accept all").foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
             .font(.system(size: 11))
@@ -291,6 +291,7 @@ struct IssueListView: View {
     let accept: (Issue) -> Void
     let ignore: (Issue) -> Void
     let acceptAll: () -> Void
+    let acceptErrors: () -> Void
     let close: () -> Void
 
     var body: some View {
@@ -299,11 +300,15 @@ struct IssueListView: View {
                 Text(issues.isEmpty ? "No suggestions" : "\(issues.count) suggestion\(issues.count == 1 ? "" : "s")")
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
-                if issues.contains(where: { $0.kind == .error }) {
-                    Button("Fix all errors", action: acceptAll)
+                if issues.contains(where: { $0.kind == .error }) && issues.contains(where: { $0.kind == .style }) {
+                    Button("Errors only", action: acceptErrors)
+                        .controlSize(.small)
+                }
+                if !issues.isEmpty {
+                    Button("Accept all  ⌃⌥A", action: acceptAll)
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
-                        .tint(IssueKind.error.swiftUIColor)
+                        .tint(issues.contains(where: { $0.kind == .error }) ? IssueKind.error.swiftUIColor : IssueKind.style.swiftUIColor)
                 }
                 Button(action: close) { Image(systemName: "xmark").font(.system(size: 10, weight: .bold)) }
                     .buttonStyle(.plain)

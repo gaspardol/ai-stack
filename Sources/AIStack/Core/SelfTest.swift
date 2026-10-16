@@ -123,7 +123,8 @@ enum SelfTest {
         guard AXIsProcessTrusted() else { finishReport(); return }
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("aistack-axtest", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let sample = "I has a apple and their are many reason to go."
+        // Only fields containing this marker are ever modified, so the user's own documents are never touched.
+        let sample = "AISTACK-TEST I has a apple and their are many reason to go."
 
         // 1. TextEdit (native NSTextView)
         let txt = dir.appendingPathComponent("AI Stack test.txt")
@@ -132,7 +133,6 @@ enum SelfTest {
             NSWorkspace.shared.open([txt], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
             pump(3)
             probe(appBundle: "com.apple.TextEdit", target: "has", fix: "have", typing: false)
-            NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.TextEdit").first?.terminate()
         }
 
         // 2. Chrome textarea and contenteditable
@@ -169,6 +169,10 @@ enum SelfTest {
         let editable = WritingAssistant.isEditable(role: role, subrole: focused.subrole)
         say("\(appBundle): focused role=\(role) subrole=\(focused.subrole ?? "-") editable=\(editable)")
         guard let value = focused.value else { say("  value: nil"); return }
+        guard value.contains("AISTACK-TEST") else {
+            say("  focused field is not the test document — skipping (nothing modified)")
+            return
+        }
         say("  value: \(value.debugDescription.prefix(80))")
         let range = (value as NSString).range(of: target)
         guard range.location != NSNotFound else { say("  target not found"); return }

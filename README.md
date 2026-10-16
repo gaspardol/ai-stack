@@ -28,6 +28,7 @@ AI Stack registers itself as a launch agent: it starts at login and relaunches b
 ## Everyday use
 
 - **Writing**: just type. Checks run about 1 second after you pause; only paragraphs you changed are re-checked.
+  Press **⌃⌥A** (Control-Option-A) in any app to accept every suggestion in the field you're typing in.
   Turn it off for one app from the menu bar (✦ → *Turn Off in …*). Terminals, code editors and password
   managers are off by default.
 - **Calls**: notes start automatically (red dot in the menu bar) and stop about 20 seconds after the call app

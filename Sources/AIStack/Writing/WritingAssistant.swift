@@ -458,7 +458,8 @@ final class WritingAssistant: ObservableObject {
             statusLine: checking ? "Checking with Claude…" : lastError.map { "Claude error: \($0)" },
             accept: { [weak self] issue in self?.accept(issue) },
             ignore: { [weak self] issue in self?.ignore(issue) },
-            acceptAll: { [weak self] in self?.acceptAllErrors() },
+            acceptAll: { [weak self] in self?.acceptAll() },
+            acceptErrors: { [weak self] in self?.acceptAll(errorsOnly: true) },
             close: { [weak self] in self?.list.hide() }
         )
     }
@@ -492,13 +493,25 @@ final class WritingAssistant: ObservableObject {
         reset()
     }
 
-    private func acceptAllErrors() {
-        let targets = issues.filter { $0.kind == .error }.sorted { $0.range.location > $1.range.location }
+    /// Accepts every visible suggestion (⌃⌥A), or only the corrections.
+    func acceptAll(errorsOnly: Bool = false) {
+        guard element != nil, !applying else { return }
+        let targets = issues.filter { !errorsOnly || $0.kind == .error }.sorted { $0.range.location > $1.range.location }
+        guard !targets.isEmpty else { NSSound.beep(); return }
         list.hide()
+        hideCard()
         Task {
+            // The shortcut fires on key-down: wait for ⌃/⌥ to be released so typed fixes aren't modified.
+            for _ in 0..<40 where !NSEvent.modifierFlags.intersection([.control, .option, .command, .shift]).isEmpty {
+                try? await Task.sleep(nanoseconds: 25_000_000)
+            }
+            var applied = 0
+            // Later spans first, so earlier ranges stay valid while the text changes.
             for issue in targets {
                 guard await apply(issue) else { break }
+                applied += 1
             }
+            Log.info("Accepted \(applied)/\(targets.count) suggestion(s)", "writing")
         }
     }
 
