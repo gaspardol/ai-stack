@@ -15,7 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     static private(set) var shared: AppDelegate!
 
     let settings = AppSettings.shared
-    let store = MeetingStore()
+    private(set) var store: MeetingStore!
     let navigation = NotesNavigation()
     private(set) var recorder: MeetingRecorder!
     private(set) var detector: MeetingDetector!
@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         }
         Log.info("AI Stack launched (\(Bundle.main.bundlePath))", "app")
 
+        store = MeetingStore()
         recorder = MeetingRecorder(store: store)
         detector = MeetingDetector(recorder: recorder)
         writing = WritingAssistant()
@@ -57,9 +58,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             .sink { [weak self] _ in self?.navigation.selection = self?.recorder.live?.id }
             .store(in: &cancellables)
 
-        if !settings.loginItemConfigured {
+        if !settings.loginItemConfigured || SMAppService.mainApp.status == .enabled {
             settings.loginItemConfigured = true
-            do { try SMAppService.mainApp.register() } catch { Log.error("Login item: \(error.localizedDescription)", "app") }
+            LoginItem.setEnabled(true)
         }
         if !settings.onboardingDone { showSetup() }
         Task { _ = await Notifier.requestPermission() }

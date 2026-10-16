@@ -17,7 +17,7 @@ struct SetupView: View {
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var modelInstalled: Bool?
     @State private var downloadingModel = false
-    @State private var loginEnabled = SMAppService.mainApp.status == .enabled
+    @State private var loginEnabled = LoginItem.isEnabled
     private let timer = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -104,12 +104,10 @@ struct SetupView: View {
                 }
 
                 group("Always on") {
-                    row(icon: "power", title: "Open at login", detail: "Keeps AI Stack running in the menu bar.", ok: loginEnabled) {
+                    row(icon: "power", title: "Open at login", detail: LoginItem.needsApproval ? "Enable AI Stack in System Settings → General → Login Items." : "Keeps AI Stack running in the menu bar and restarts it if it ever crashes.", ok: loginEnabled) {
                         Toggle("", isOn: Binding(get: { loginEnabled }, set: { value in
-                            do {
-                                if value { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-                            } catch { Log.error("Login item: \(error.localizedDescription)", "app") }
-                            loginEnabled = SMAppService.mainApp.status == .enabled
+                            LoginItem.setEnabled(value)
+                            loginEnabled = LoginItem.isEnabled
                         }))
                         .toggleStyle(.switch)
                         .labelsHidden()
@@ -169,7 +167,7 @@ struct SetupView: View {
         micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
         calendarStatus = EKEventStore.authorizationStatus(for: .event)
         systemAudioRequested = UserDefaults.standard.bool(forKey: "systemAudio.requested")
-        loginEnabled = SMAppService.mainApp.status == .enabled
+        loginEnabled = LoginItem.isEnabled
         Task {
             notificationStatus = await Notifier.authorizationStatus()
             if !downloadingModel { modelInstalled = await LiveTranscriber.isModelInstalled(settings.notesLanguage) }
