@@ -106,26 +106,34 @@ final class GrammarEngine {
     func isIgnored(_ issue: Issue) -> Bool { ignored.contains(ignoreKey(issue)) }
     private func ignoreKey(_ issue: Issue) -> String { "\(issue.paragraph)\u{1}\(issue.text)\u{1}\(issue.fix)" }
 
-    /// After accepting a suggestion we already know the result for the new paragraph text.
-    func recordApplied(_ issue: Issue) {
-        guard let issues = cache[issue.paragraph] else { return }
-        let paragraph = issue.paragraph as NSString
-        guard NSMaxRange(issue.local) <= paragraph.length else { return }
-        let updatedParagraph = paragraph.replacingCharacters(in: issue.local, with: issue.fix)
-        let delta = (issue.fix as NSString).length - issue.local.length
-        var remaining: [ParagraphIssue] = []
-        for item in issues {
-            if item.local == issue.local && item.fix == issue.fix { continue }
-            if NSIntersectionRange(item.local, issue.local).length > 0 { continue }
-            if item.local.location >= NSMaxRange(issue.local) {
+    /// After accepting suggestions we already know the result for the new paragraph text(s),
+    /// so they aren't re-checked (and don't sprout fresh suggestions).
+    func recordApplied(_ applied: [Issue]) {
+        var results: [String: [ParagraphIssue]] = [:]
+        for (paragraph, fixes) in Dictionary(grouping: applied, by: \.paragraph) {
+            guard let items = cache[paragraph] else { continue }
+            let source = paragraph as NSString
+            let sorted = fixes.sorted { $0.local.location < $1.local.location }
+            guard sorted.allSatisfy({ NSMaxRange($0.local) <= source.length }) else { continue }
+            var updated = ""
+            var position = 0
+            for fix in sorted {
+                updated += source.substring(with: NSRange(location: position, length: fix.local.location - position)) + fix.fix
+                position = NSMaxRange(fix.local)
+            }
+            updated += source.substring(from: position)
+            var remaining: [ParagraphIssue] = []
+            for item in items {
+                if sorted.contains(where: { NSIntersectionRange($0.local, item.local).length > 0 }) { continue }
+                let delta = sorted.filter { NSMaxRange($0.local) <= item.local.location }
+                    .reduce(0) { $0 + ($1.fix as NSString).length - $1.local.length }
                 remaining.append(ParagraphIssue(kind: item.kind,
                                                 local: NSRange(location: item.local.location + delta, length: item.local.length),
                                                 text: item.text, fix: item.fix, why: item.why))
-            } else {
-                remaining.append(item)
             }
+            results[updated] = remaining
         }
-        store([updatedParagraph: remaining])
+        store(results)
     }
 
     /// Paragraphs that still need a check, closest to the caret first. Marks them in flight.

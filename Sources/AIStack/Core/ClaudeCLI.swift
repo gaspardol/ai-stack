@@ -74,9 +74,7 @@ final class ClaudeCLI {
 
     func complete(_ prompt: String, config: ClaudeRequestConfig, timeout: TimeInterval) async throws -> String {
         guard let binary = binaryPath() else { throw ClaudeError.notInstalled }
-        lock.lock()
-        let ready = warm.removeValue(forKey: config)
-        lock.unlock()
+        let ready = takeWarm(config)
         let process: ClaudeProcess
         if let ready, ready.isFresh {
             process = ready
@@ -86,6 +84,10 @@ final class ClaudeCLI {
         }
         if config.keepWarm { prewarm(config) }
         return try await process.send(prompt, timeout: timeout)
+    }
+
+    private func takeWarm(_ config: ClaudeRequestConfig) -> ClaudeProcess? {
+        lock.withLock { warm.removeValue(forKey: config) }
     }
 
     func prewarm(_ config: ClaudeRequestConfig) {
@@ -125,7 +127,8 @@ final class ClaudeCLI {
 }
 
 /// One `claude -p --input-format stream-json` process that answers exactly one prompt.
-final class ClaudeProcess {
+/// Thread-safe: all mutable state is confined to `queue`.
+final class ClaudeProcess: @unchecked Sendable {
     private let process = Process()
     private let stdinPipe = Pipe()
     private let stdoutPipe = Pipe()

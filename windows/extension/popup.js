@@ -39,7 +39,7 @@ async function refresh() {
   for (const key of ['writingEnabled', 'styleSuggestions']) $(key).checked = Boolean(settings[key]);
   $('notesMode').value = settings.notesMode;
   $('notesLanguage').value = settings.notesLanguage;
-  const site = currentTab?.url ? new URL(currentTab.url).hostname : '';
+  const site = /^https?:/.test(currentTab?.url || '') ? new URL(currentTab.url).hostname : '';
   $('site').textContent = site || 'this site';
   $('siteOff').checked = (settings.disabledSites || []).includes(site);
   $('siteOff').disabled = !site;

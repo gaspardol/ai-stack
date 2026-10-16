@@ -506,9 +506,10 @@ final class WritingAssistant: ObservableObject {
                 try? await Task.sleep(nanoseconds: 25_000_000)
             }
             var applied = 0
+            engine.recordApplied(targets)
             // Later spans first, so earlier ranges stay valid while the text changes.
             for issue in targets {
-                guard await apply(issue) else { break }
+                guard await apply(issue, record: false) else { break }
                 applied += 1
             }
             Log.info("Accepted \(applied)/\(targets.count) suggestion(s)", "writing")
@@ -516,7 +517,7 @@ final class WritingAssistant: ObservableObject {
     }
 
     /// Replaces the issue's span in the focused field. Returns true when the text was updated.
-    private func apply(_ issue: Issue) async -> Bool {
+    private func apply(_ issue: Issue, record: Bool = true) async -> Bool {
         guard let element, let current = element.value else { return false }
         let string = current as NSString
         guard NSMaxRange(issue.range) <= string.length, string.substring(with: issue.range) == issue.text else {
@@ -526,7 +527,7 @@ final class WritingAssistant: ObservableObject {
         applying = true
         defer { applying = false }
         let expected = string.replacingCharacters(in: issue.range, with: issue.fix)
-        engine.recordApplied(issue)
+        if record { engine.recordApplied([issue]) }
 
         guard element.setSelectedRange(issue.range) else {
             Log.error("Could not select text in \(lastExternalApp?.bundleIdentifier ?? "?")", "writing")

@@ -182,18 +182,35 @@
     return results;
   }
 
-  function recordApplied(issue) {
-    const items = cache.get(issue.paragraph);
-    if (!items) return;
-    const updated = issue.paragraph.slice(0, issue.local) + issue.fix + issue.paragraph.slice(issue.local + issue.text.length);
-    const delta = issue.fix.length - issue.text.length;
-    const remaining = [];
-    for (const item of items) {
-      if (item.start === issue.local && item.fix === issue.fix) continue;
-      if (item.start < issue.local + issue.text.length && issue.local < item.start + item.len) continue;
-      remaining.push(item.start >= issue.local + issue.text.length ? { ...item, start: item.start + delta } : item);
+  /// After accepting suggestions we already know the result for the new paragraph text(s),
+  /// so they don't get re-checked (and don't sprout fresh suggestions).
+  function recordApplied(applied) {
+    const byParagraph = new Map();
+    for (const issue of applied) {
+      if (!byParagraph.has(issue.paragraph)) byParagraph.set(issue.paragraph, []);
+      byParagraph.get(issue.paragraph).push(issue);
     }
-    storeResults(new Map([[updated, remaining]]));
+    const results = new Map();
+    for (const [paragraph, list] of byParagraph) {
+      const items = cache.get(paragraph);
+      if (!items) continue;
+      const fixes = [...list].sort((a, b) => a.local - b.local);
+      let updated = '';
+      let position = 0;
+      for (const fix of fixes) {
+        updated += paragraph.slice(position, fix.local) + fix.fix;
+        position = fix.local + fix.text.length;
+      }
+      updated += paragraph.slice(position);
+      const remaining = [];
+      for (const item of items) {
+        if (fixes.some((f) => item.start < f.local + f.text.length && f.local < item.start + item.len)) continue;
+        const delta = fixes.filter((f) => f.local + f.text.length <= item.start).reduce((d, f) => d + f.fix.length - f.text.length, 0);
+        remaining.push({ ...item, start: item.start + delta });
+      }
+      results.set(updated, remaining);
+    }
+    storeResults(results);
   }
 
   const ignoreKey = (issue) => `${issue.paragraph}\u0001${issue.text}\u0001${issue.fix}`;
@@ -858,11 +875,11 @@
   // ---------------------------------------------------------------------------
   // Actions
 
-  async function apply(issue) {
+  async function apply(issue, record = true) {
     if (!field) return false;
     syncText();
     if (text.slice(issue.start, issue.end) !== issue.text) return false;
-    recordApplied(issue);
+    if (record) recordApplied([issue]);
     const ok = await field.replace(issue.start, issue.end, issue.fix);
     syncText();
     return ok;
@@ -883,10 +900,11 @@
     hideCard();
     hideList();
     applying = true;
+    recordApplied(targets);
     try {
       // Later spans first, so earlier offsets stay valid while the text changes.
       for (const issue of targets) {
-        if (!(await apply(issue))) break;
+        if (!(await apply(issue, false))) break;
       }
     } finally {
       applying = false;

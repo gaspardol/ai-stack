@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import SwiftUI
 import AVFoundation
 import Foundation
 
@@ -11,7 +12,7 @@ enum SelfTest {
         let mode = args[index + 1]
         let extra = Array(args.dropFirst(index + 2))
         let done = DispatchSemaphore(value: 0)
-        doneSignal = mode == "ax" ? done : nil
+        doneSignal = mode == "ax" || mode == "render" ? done : nil
         Task.detached {
             do {
                 switch mode {
@@ -19,6 +20,7 @@ enum SelfTest {
                 case "transcribe": try await transcribe(extra.first ?? "", language: extra.dropFirst().first ?? "en-GB")
                 case "notes": try await notes()
                 case "ax": await MainActor.run { axTest() }; return
+                case "render": await MainActor.run { renderScreens(outDir: extra[0], meetingPath: extra[1]) }; return
                 default: print("unknown mode \(mode)")
                 }
             } catch {
@@ -26,7 +28,7 @@ enum SelfTest {
             }
             done.signal()
         }
-        if mode == "ax" {
+        if mode == "ax" || mode == "render" {
             // AX + key events need the main run loop.
             while done.wait(timeout: .now()) == .timedOut { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
         } else {
@@ -198,4 +200,64 @@ enum SelfTest {
         doneSignal?.signal()
     }
     nonisolated(unsafe) private static var doneSignal: DispatchSemaphore?
+
+    // MARK: - README screenshots (real SwiftUI views, rendered off-screen)
+
+    @MainActor
+    private static func renderScreens(outDir: String, meetingPath: String) {
+        _ = NSApplication.shared
+        NSApp.setActivationPolicy(.accessory)
+        do {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let meeting = try decoder.decode(Meeting.self, from: Data(contentsOf: URL(fileURLWithPath: meetingPath)))
+            let store = MeetingStore(preview: [meeting])
+            let recorder = MeetingRecorder(store: store)
+            let navigation = NotesNavigation()
+            navigation.selection = meeting.id
+            for dark in [false, true] {
+                // The split view's translucent sidebar can't be drawn off-screen, so render the meeting itself.
+                let view = MeetingDetailView(id: meeting.id)
+                    .environmentObject(store).environmentObject(recorder)
+                    .environmentObject(navigation).environmentObject(AppSettings.shared)
+                    .background(Color(nsColor: .windowBackgroundColor))
+                snapshot(view, title: "Meeting Notes", size: CGSize(width: 920, height: 760), dark: dark,
+                         to: "\(outDir)/mac-notes-\(dark ? "dark" : "light").png")
+            }
+            let issue = Issue(paragraph: "I has finished the mockups.", offset: 0,
+                              ParagraphIssue(kind: .error, local: NSRange(location: 0, length: 5), text: "I has", fix: "I have", why: "Subject-verb agreement"))
+            for dark in [false, true] {
+                let card = SuggestionCardView(issue: issue, appName: "Mail", accept: {}, ignore: {}, disableApp: {}).padding(24)
+                snapshot(card, title: nil, size: CGSize(width: 368, height: 190), dark: dark, to: "\(outDir)/mac-card-\(dark ? "dark" : "light").png")
+            }
+            say("rendered to \(outDir)")
+        } catch {
+            say("render failed: \(error)")
+        }
+        doneSignal?.signal()
+    }
+
+    private final class OffscreenWindow: NSWindow {
+        override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
+    }
+
+    @MainActor
+    private static func snapshot<V: View>(_ view: V, title: String?, size: CGSize, dark: Bool, to path: String) {
+        let style: NSWindow.StyleMask = title == nil ? [.borderless] : [.titled, .closable, .miniaturizable, .resizable]
+        let window = OffscreenWindow(contentRect: NSRect(x: -30000, y: -30000, width: size.width, height: size.height),
+                                     styleMask: style, backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        window.title = title ?? ""
+        window.isOpaque = title != nil
+        window.backgroundColor = title == nil ? .clear : .windowBackgroundColor
+        window.contentView = NSHostingView(rootView: view)
+        window.setContentSize(size)
+        window.orderFrontRegardless()
+        pump(2.5)
+        let target = (title == nil ? window.contentView : window.contentView?.superview) ?? window.contentView!
+        guard let rep = target.bitmapImageRepForCachingDisplay(in: target.bounds) else { return }
+        target.cacheDisplay(in: target.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        window.orderOut(nil)
+    }
 }

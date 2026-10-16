@@ -94,7 +94,15 @@ final class MeetingStore: ObservableObject {
         return d
     }()
 
+    private var isPreview = false
+
     init() { load() }
+
+    /// In-memory store for screenshots and previews (never touches disk).
+    init(preview: [Meeting]) {
+        isPreview = true
+        meetings = preview.sorted { $0.startedAt > $1.startedAt }
+    }
 
     private func load() {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
@@ -141,7 +149,7 @@ final class MeetingStore: ObservableObject {
     private func fileURL(_ id: UUID) -> URL { directory.appendingPathComponent("\(id.uuidString).json") }
 
     private func persist(_ meeting: Meeting) {
-        guard let data = try? encoder.encode(meeting) else { return }
+        guard !isPreview, let data = try? encoder.encode(meeting) else { return }
         let url = fileURL(meeting.id)
         ioQueue.async { try? data.write(to: url, options: .atomic) }
     }
