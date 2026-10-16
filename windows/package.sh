@@ -60,7 +60,7 @@ Use:
 TXT
 
 echo "→ Zipping"
-(cd "$OUT" && ditto -c -k --sequesterRsrc --keepParent "AI Stack for Windows" "AI-Stack-Windows.zip")
+(cd "$OUT" && ditto -c -k --norsrc --noextattr --keepParent "AI Stack for Windows" "AI-Stack-Windows.zip")
 DEST="${1:-$HOME/Desktop}"
 mkdir -p "$DEST"
 cp "$OUT/AI-Stack-Windows.zip" "$DEST/"

@@ -10,7 +10,7 @@ rm -rf "$DIST" "$WORK"
 mkdir -p "$DIST" "$WORK"
 
 scripts/make_bundle.sh "$WORK/AI Stack.app" universal
-(cd "$WORK" && ditto -c -k --sequesterRsrc --keepParent "AI Stack.app" "$DIST/AI-Stack-macOS.zip")
+(cd "$WORK" && ditto -c -k --norsrc --noextattr --keepParent "AI Stack.app" "$DIST/AI-Stack-macOS.zip")
 
 windows/package.sh "$DIST"
 ls -lh "$DIST"
