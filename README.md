@@ -59,6 +59,24 @@ Sources/AIStack/
 - Logs: `~/Library/Logs/AIStack/aistack.log`.
 - Self-tests (no UI): `"/Applications/AI Stack.app/Contents/MacOS/AIStack" --selftest grammar|notes|transcribe <file>`
 
+## Windows (Dell) version
+
+`windows/` holds the same two tools for Chrome on Windows:
+
+```
+Chrome extension (windows/extension)   underlines in web text boxes, Ctrl+Alt+A, call detection,
+        │  native messaging            live notepad side panel, meeting library
+AIStackHelper.exe (windows/helper)     claude CLI bridge, WASAPI mic + speaker capture,
+                                       Whisper (small, on-device) transcription, notes, Markdown export
+```
+
+- Build the installer zip: `./windows/package.sh` → `~/Desktop/AI Stack for Windows.zip` (x64 + ARM64).
+- On the PC: unblock + extract the zip, run `Install AI Stack.cmd`, then load the extension unpacked from
+  `%LOCALAPPDATA%\AIStack\extension` (the installer copies the path to the clipboard).
+- Logs: `%LOCALAPPDATA%\AIStack\logs\helper.log`. Notes: `Documents\Meeting Notes`.
+- The extension also runs in Chrome on a Mac; the helper builds for macOS too, which is how it is tested
+  end to end (`AIStackHelper --register-test <chrome-profile>` and `--selftest claude|meeting`).
+
 ## Known limits
 
 - Google Docs draws its text on a canvas, so the writing assistant can't see it (works in Gmail, Slack, Notion,

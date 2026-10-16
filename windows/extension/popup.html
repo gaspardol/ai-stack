@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="ui/style.css">
+  <style>
+    body { width: 340px; padding: 14px; }
+    header { display: flex; align-items: center; gap: 10px; }
+    header img { width: 28px; height: 28px; }
+    header h1 { font-size: 16px; margin: 0; }
+    .card { background: var(--panel); border-radius: 10px; padding: 10px 12px; }
+    .stack > * + * { margin-top: 8px; }
+    label.toggle { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <div class="grow"><h1>AI Stack</h1><div class="small muted" id="status">Connecting…</div></div>
+  </header>
+
+  <div class="section-title">Meeting notes</div>
+  <div class="card stack">
+    <div id="live" class="row" hidden><span class="dot red"></span><span class="grow" id="liveTitle"></span><span id="liveTime" class="small muted"></span></div>
+    <div class="actions">
+      <button class="btn primary" id="start">Start notes now</button>
+      <button class="btn danger" id="stop" hidden>Stop &amp; write notes</button>
+      <button class="btn" id="notepad">Open notepad</button>
+      <button class="btn" id="library">All meetings</button>
+    </div>
+    <label class="toggle">When a call starts
+      <select id="notesMode">
+        <option value="auto">Take notes</option>
+        <option value="ask">Ask me</option>
+        <option value="manual">Do nothing</option>
+      </select>
+    </label>
+    <label class="toggle">Call language <select id="notesLanguage"></select></label>
+  </div>
+
+  <div class="section-title">Writing assistant</div>
+  <div class="card stack">
+    <label class="toggle">Check my writing <input type="checkbox" id="writingEnabled"></label>
+    <label class="toggle">Suggest better phrasing <input type="checkbox" id="styleSuggestions"></label>
+    <label class="toggle"><span>Off on <b id="site">this site</b></span> <input type="checkbox" id="siteOff"></label>
+    <div class="small muted"><span class="kbd">Ctrl</span>+<span class="kbd">Alt</span>+<span class="kbd">A</span> accepts every suggestion in the field you're typing in.</div>
+  </div>
+  <script src="ui/common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

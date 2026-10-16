@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AI Stack notepad</title>
+  <link rel="stylesheet" href="ui/style.css">
+  <style>
+    body { display: flex; flex-direction: column; height: 100vh; }
+    header { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    #title { font-size: 16px; font-weight: 700; width: 100%; border: 0; padding: 0; background: transparent; }
+    #title:focus { outline: none; }
+    main { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 12px 14px; gap: 8px; }
+    #notes { flex: 1; min-height: 140px; background: var(--panel); border: 0; padding: 10px; line-height: 1.5; }
+    #transcript { height: 38vh; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 10px; font-size: 13px; }
+    .idle { padding: 24px 16px; text-align: center; }
+    .recent a { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--text); text-decoration: none; }
+    .recent a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <section id="liveView" hidden style="display:flex;flex-direction:column;height:100%">
+    <header>
+      <input id="title" type="text">
+      <div class="row small muted" style="margin-top:4px">
+        <span class="dot red"></span><span id="timer">00:00</span><span>· transcribing on this computer</span>
+        <span class="grow"></span>
+        <button class="btn danger" id="stop">Stop &amp; write notes</button>
+      </div>
+    </header>
+    <main>
+      <div class="small muted">Your notes — jot anything important. Claude merges it with the transcript when the call ends.</div>
+      <textarea id="notes" placeholder="Type notes here…"></textarea>
+      <div class="section-title">Live transcript</div>
+      <div id="transcript"></div>
+    </main>
+  </section>
+
+  <section id="idleView" class="idle" hidden>
+    <img src="icons/icon128.png" width="56" alt="">
+    <h2 style="margin:10px 0 4px">No call in progress</h2>
+    <p class="muted small">Notes start automatically when you join a call in Meet, Teams or Zoom. You can also start them yourself.</p>
+    <button class="btn primary" id="start">Start notes now</button>
+    <div id="ready" class="small" style="margin-top:14px"></div>
+    <div class="section-title" style="text-align:left">Recent meetings</div>
+    <div class="recent" id="recent" style="text-align:left"></div>
+    <p><button class="link" id="library">Open all meetings →</button></p>
+  </section>
+  <script src="ui/common.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
