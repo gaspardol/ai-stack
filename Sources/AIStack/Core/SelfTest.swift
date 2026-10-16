@@ -1,3 +1,5 @@
+import AppKit
+import ApplicationServices
 import AVFoundation
 import Foundation
 
@@ -9,12 +11,14 @@ enum SelfTest {
         let mode = args[index + 1]
         let extra = Array(args.dropFirst(index + 2))
         let done = DispatchSemaphore(value: 0)
+        doneSignal = mode == "ax" ? done : nil
         Task.detached {
             do {
                 switch mode {
                 case "grammar": try await grammar(extra.first)
                 case "transcribe": try await transcribe(extra.first ?? "", language: extra.dropFirst().first ?? "en-GB")
                 case "notes": try await notes()
+                case "ax": await MainActor.run { axTest() }; return
                 default: print("unknown mode \(mode)")
                 }
             } catch {
@@ -22,7 +26,12 @@ enum SelfTest {
             }
             done.signal()
         }
-        done.wait()
+        if mode == "ax" {
+            // AX + key events need the main run loop.
+            while done.wait(timeout: .now()) == .timedOut { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+        } else {
+            done.wait()
+        }
         exit(0)
     }
 
@@ -95,4 +104,94 @@ enum SelfTest {
         print(String(format: "took %.1fs — title: %@\n", Date().timeIntervalSince(started), title ?? "nil"))
         print(body)
     }
+
+    // MARK: - Accessibility pipeline check (run from the installed app so it has AX permission)
+
+    private static var report: [String] = []
+    private static func say(_ line: String) {
+        print(line)
+        report.append(line)
+    }
+
+    private static func pump(_ seconds: Double) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    @MainActor
+    private static func axTest() {
+        say("AX trusted: \(AXIsProcessTrusted())")
+        guard AXIsProcessTrusted() else { finishReport(); return }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("aistack-axtest", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let sample = "I has a apple and their are many reason to go."
+
+        // 1. TextEdit (native NSTextView)
+        let txt = dir.appendingPathComponent("AI Stack test.txt")
+        try? sample.write(to: txt, atomically: true, encoding: .utf8)
+        if let editor = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") {
+            NSWorkspace.shared.open([txt], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration())
+            pump(3)
+            probe(appBundle: "com.apple.TextEdit", target: "has", fix: "have", typing: false)
+            NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.TextEdit").first?.terminate()
+        }
+
+        // 2. Chrome textarea and contenteditable
+        let pages: [(String, String)] = [
+            ("textarea", "<textarea id=t autofocus style='width:600px;height:120px;font-size:18px'>\(sample)</textarea>"),
+            ("contenteditable", "<div id=t contenteditable autofocus style='width:600px;min-height:120px;font-size:18px;border:1px solid #999'>\(sample)</div><script>const e=document.getElementById('t');e.focus();</script>"),
+        ]
+        for (name, body) in pages {
+            let html = dir.appendingPathComponent("\(name).html")
+            try? "<!doctype html><title>AI Stack \(name) test</title><body>\(body)</body>".write(to: html, atomically: true, encoding: .utf8)
+            guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") else { break }
+            NSWorkspace.shared.open([html], withApplicationAt: chrome, configuration: NSWorkspace.OpenConfiguration())
+            pump(4)
+            say("— Chrome \(name)")
+            probe(appBundle: "com.google.Chrome", target: "has", fix: "have", typing: true)
+        }
+        finishReport()
+    }
+
+    @MainActor
+    private static func probe(appBundle: String, target: String, fix: String, typing: Bool) {
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: appBundle).first else {
+            say("\(appBundle): not running"); return
+        }
+        app.activate()
+        pump(0.8)
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(appElement, 1)
+        appElement.set("AXManualAccessibility", kCFBooleanTrue)
+        if WritingAssistant.isChromiumBrowser(appBundle) { appElement.set("AXEnhancedUserInterface", kCFBooleanTrue) }
+        pump(1.0)
+        guard let focused = appElement.focusedElement else { say("\(appBundle): no focused element"); return }
+        let role = focused.role ?? "?"
+        let editable = WritingAssistant.isEditable(role: role, subrole: focused.subrole)
+        say("\(appBundle): focused role=\(role) subrole=\(focused.subrole ?? "-") editable=\(editable)")
+        guard let value = focused.value else { say("  value: nil"); return }
+        say("  value: \(value.debugDescription.prefix(80))")
+        let range = (value as NSString).range(of: target)
+        guard range.location != NSNotFound else { say("  target not found"); return }
+        say("  frame: \(focused.frame.map { "\($0)" } ?? "nil")")
+        say("  bounds(\(target)): \(focused.bounds(for: range).map { "\($0)" } ?? "nil")")
+        let selected = focused.setSelectedRange(range)
+        pump(0.2)
+        say("  setSelectedRange: \(selected) → now \(focused.selectedRange.map { "\($0)" } ?? "nil")")
+        let expected = (value as NSString).replacingCharacters(in: range, with: fix)
+        if typing {
+            KeyboardTyper.replaceSelection(with: fix)
+        } else {
+            say("  setSelectedText: \(focused.setSelectedText(fix).rawValue)")
+        }
+        pump(0.6)
+        let after = focused.value ?? ""
+        say("  replaced via \(typing ? "typing" : "AX"): \(after == expected ? "OK" : "MISMATCH → \(after.debugDescription.prefix(80))")")
+    }
+
+    private static func finishReport() {
+        let url = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/AIStack/axtest.txt")
+        try? report.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+        doneSignal?.signal()
+    }
+    nonisolated(unsafe) private static var doneSignal: DispatchSemaphore?
 }
