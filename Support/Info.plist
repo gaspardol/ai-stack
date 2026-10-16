@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleExecutable</key>
+	<string>AIStack</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.gaspardoliviers.aistack</string>
+	<key>CFBundleName</key>
+	<string>AI Stack</string>
+	<key>CFBundleDisplayName</key>
+	<string>AI Stack</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AI Stack transcribes your side of calls on-device to write meeting notes.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>AI Stack transcribes the other participants of your calls on-device to write meeting notes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>AI Stack transcribes meetings on-device.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>AI Stack uses your calendar to name meetings and list attendees.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>AI Stack checks your browser tabs to detect video calls (Google Meet, Teams, Zoom).</string>
+</dict>
+</plist>
