@@ -210,9 +210,12 @@
 
   function usable(el) {
     if (el.readOnly || el.disabled) return false;
-    if (el.getAttribute('spellcheck') === 'false') return false;
     if (el.getAttribute('aria-readonly') === 'true') return false;
-    if (el.closest('.monaco-editor, .cm-editor, .CodeMirror, .ace_editor, [data-aistack-ignore], [role="combobox"]')) return false;
+    // Note: spellcheck="false" is NOT a reason to skip — Gmail sets it on its message body because it
+    // runs its own checker. Sites opt out of writing assistants with the Grammarly attributes instead.
+    if (el.closest('[data-gramm="false"], [data-gramm_editor="false"], [data-enable-grammarly="false"], [data-aistack-ignore]')) return false;
+    if (el.closest('.monaco-editor, .cm-editor, .CodeMirror, .ace_editor, .ql-code-block, pre, code')) return false;
+    if (el instanceof HTMLInputElement && el.closest('[role="combobox"], [role="search"]')) return false;
     return true;
   }
 

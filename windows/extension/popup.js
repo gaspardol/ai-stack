@@ -80,6 +80,19 @@ $('notepad').addEventListener('click', async () => {
   window.close();
 });
 $('library').addEventListener('click', () => { AIS.message({ type: 'openNotes' }); window.close(); });
+$('test').addEventListener('click', async () => {
+  $('test').disabled = true;
+  $('testResult').textContent = 'Checking “I has a apple.”…';
+  const started = Date.now();
+  try {
+    const reply = await AIS.message({ type: 'grammar', paragraphs: ['I has a apple.'], app: 'AI Stack test' });
+    const issues = JSON.parse(reply.text.slice(reply.text.indexOf('{'), reply.text.lastIndexOf('}') + 1)).issues || [];
+    $('testResult').innerHTML = `<span class="dot green"></span> Works — ${issues.length} issue(s) found in ${((Date.now() - started) / 1000).toFixed(1)}s`;
+  } catch (error) {
+    $('testResult').innerHTML = `<span class="dot orange"></span> ${AIS.escape(error.message)}`;
+  }
+  $('test').disabled = false;
+});
 
 setInterval(() => {
   if (liveStarted) $('liveTime').textContent = AIS.clock(Date.now() - liveStarted);

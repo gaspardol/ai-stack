@@ -46,6 +46,9 @@ Install (about 5 minutes, once):
     pick the folder the installer copied to your clipboard
     (%LOCALAPPDATA%\AIStack\extension). Pin the AI Stack icon.
 
+Update: run "Install AI Stack.cmd" from the new zip, then in chrome://extensions click
+the reload arrow on the AI Stack card (or restart Chrome).
+
 Use:
  - Type in Gmail or any web text box: errors get a red underline, awkward phrasing blue.
    Hover to see the fix, click it, or press Ctrl+Alt+A to accept everything.
@@ -57,8 +60,9 @@ Use:
 TXT
 
 echo "→ Zipping"
-(cd "$OUT" && ditto -c -k --sequesterRsrc --keepParent "AI Stack for Windows" "AI Stack for Windows.zip")
+(cd "$OUT" && ditto -c -k --sequesterRsrc --keepParent "AI Stack for Windows" "AI-Stack-Windows.zip")
 DEST="${1:-$HOME/Desktop}"
-cp "$OUT/AI Stack for Windows.zip" "$DEST/"
-du -sh "$PKG" "$DEST/AI Stack for Windows.zip"
-echo "✓ $DEST/AI Stack for Windows.zip"
+mkdir -p "$DEST"
+cp "$OUT/AI-Stack-Windows.zip" "$DEST/"
+du -sh "$DEST/AI-Stack-Windows.zip"
+echo "✓ $DEST/AI-Stack-Windows.zip"
